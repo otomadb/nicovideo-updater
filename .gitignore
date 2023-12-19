@@ -1,1 +1,13 @@
+# deps
+node_modules/
+
+# dumps
+dumps/
+
+# output
 dist/
+
+# env
+.env
+!.env.example
+.envrc
