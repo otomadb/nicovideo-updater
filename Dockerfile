@@ -33,7 +33,7 @@ RUN chmod +x /bin/tini
 ENV NODE_ENV production
 
 ## copy build dist
-COPY --from=builder /build/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node ./node_modules/@prisma/client/libquery_engine-debian-openssl-3.0.x.so.node
+COPY --from=builder /build/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node ./node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node
 COPY --from=builder /build/dist ./dist
 
 ENTRYPOINT ["tini", "--"]
