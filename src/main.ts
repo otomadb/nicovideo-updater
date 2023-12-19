@@ -24,7 +24,6 @@ const sources = await prisma.nicovideoVideoSource.findMany({
     id: true,
     sourceId: true,
   },
-  take: 100,
 });
 
 logger.info({ message: "Estimated update count", count: sources.length });
