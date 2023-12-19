@@ -1,0 +1,28 @@
+name: otomadb-nicovideo-updater
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15@sha256:bec340fb35711dd4a989146591b6adfaac53e6b0c02524ff956c43b054d117dd
+    healthcheck:
+      test: pg_isready
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: test
+    ports:
+      - target: 5432
+        published: 25432
+
+  postgres-migration:
+    build:
+      context: ./prisma
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PRISMA_DATABASE_URL: "postgres://user:pass@postgres:5432/test"

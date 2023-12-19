@@ -12,35 +12,42 @@ const logger = winston.createLogger({
 
 if (process.env.NODE_ENV !== "production") {
   logger.add(
-    new winston.transports.Console({ format: winston.format.simple() }),
+    new winston.transports.Console({ format: winston.format.simple() })
   );
 }
 
 const sources = await prisma.nicovideoVideoSource.findMany({
-  where: { registeredAt: null },
+  where: {
+    OR: [{ registeredAt: null }, { account: null }],
+  },
   select: {
     id: true,
     sourceId: true,
   },
+  take: 100,
 });
 
-logger.info({ message: "Remain missing data count", count: sources.length });
+logger.info({ message: "Estimated update count", count: sources.length });
 
 const tx: ReturnType<typeof prisma.nicovideoVideoSource.update>[] = [];
 for (const { id, sourceId } of sources) {
   const url = new URL(
     `/api/watch/v3_guest/${sourceId}`,
-    "https://www.nicovideo.jp",
+    "https://www.nicovideo.jp"
   );
   url.searchParams.set("_frontendId", "6");
   url.searchParams.set("_frontendVersion", "0");
   url.searchParams.set("skips", "harmful");
   url.searchParams.set(
     "actionTrackId",
-    `${Math.random().toString(36).substring(2)}_${Date.now()}`,
+    `${Math.random().toString(36).substring(2)}_${Date.now()}`
   );
 
   try {
+    logger.debug({
+      message: "Fetching from Nicovideo api",
+      url: url.toString(),
+    });
     const json = await ky
       .get(url.toString(), {
         timeout: 5000,
@@ -52,6 +59,7 @@ for (const { id, sourceId } of sources) {
     const {
       data: {
         video: { registeredAt },
+        owner,
       },
     } = z
       .object({
@@ -67,6 +75,13 @@ for (const { id, sourceId } of sources) {
                 return new Date(arg);
             }, z.date()),
           }),
+          owner: z
+            .object({
+              id: z.number(),
+              nickname: z.string(),
+              iconUrl: z.string().url(),
+            })
+            .nullable(),
         }),
       })
       .parse(json);
@@ -74,8 +89,28 @@ for (const { id, sourceId } of sources) {
     tx.push(
       prisma.nicovideoVideoSource.update({
         where: { id },
-        data: { registeredAt: registeredAt },
-      }),
+        data: {
+          registeredAt: registeredAt,
+          account: owner
+            ? {
+                connectOrCreate: {
+                  where: {
+                    accountId: owner.id.toString(10),
+                  },
+                  create: {
+                    accountId: owner.id.toString(10),
+                    name: owner.nickname,
+                  },
+                  /*
+                  update: {
+                    name: owner.nickname,
+                  },
+                  */
+                },
+              }
+            : undefined,
+        },
+      })
     );
     logger.info({
       message: "Fetch from Nicovideo api successfully",
